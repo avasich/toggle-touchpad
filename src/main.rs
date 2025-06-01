@@ -1,34 +1,8 @@
-use std::{
-    fs::{DirEntry, File, ReadDir},
-    io::{BufRead, BufReader},
-    path::Path,
-};
-
-fn find_entry(entry: DirEntry, predicate: &impl Fn(&Path) -> bool) -> Option<DirEntry> {
-    let metadata = entry.metadata().ok()?;
-    if metadata.is_dir() {
-        traverse_dir(std::fs::read_dir(entry.path()).ok()?, predicate)
-    } else if metadata.is_file() && predicate(entry.path().as_path()) {
-        Some(entry)
-    } else {
-        None
-    }
-}
-
-fn traverse_dir(dir: ReadDir, predicate: &impl Fn(&Path) -> bool) -> Option<DirEntry> {
-    dir.flatten().filter_map(|entry| find_entry(entry, predicate)).next()
-}
-
 fn main() -> Result<(), std::io::Error> {
-    let pci_dir = std::fs::read_dir("/sys/devices/pci0000:00")?;
-    let inhibited_path = traverse_dir(pci_dir, &|path| {
-        File::open(path)
-            .ok()
-            .and_then(|f| BufReader::new(f).lines().next())
-            .and_then(Result::ok)
-            .is_some_and(|line| line.contains("Touchpad"))
-    })
-    .and_then(|entry| entry.path().parent().map(|parent| parent.join("inhibited")));
+    let inhibited_path = std::fs::read_dir("/sys/class/input")?.flatten().find_map(|entry| {
+        let name_path = entry.path().join("device/name");
+        std::fs::read_to_string(&name_path).ok().filter(|line| line.to_lowercase().contains("touchpad")).map(|_| entry.path().join("device/inhibited"))
+    });
 
     if let Some(inhibited_path) = inhibited_path {
         let contents = std::fs::read_to_string(&inhibited_path)?.trim().to_string();
