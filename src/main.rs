@@ -15,7 +15,7 @@ fn main() -> Result<(), std::io::Error> {
 }
 
 
-/// looks for corresponding 'inhibited' file in /sys/class/input/{device} and /sys/class/input/{device}/device
+/// looks for corresponding 'inhibited' file in /sys/class/input/input*
 fn find_in_class_input(device_name: &str) -> Option<PathBuf> {
     std::fs::read_dir("/sys/class/input")
         .ok()?
